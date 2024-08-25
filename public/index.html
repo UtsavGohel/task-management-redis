@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Task Notifications</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        padding: 0;
+      }
+      h1 {
+        margin-bottom: 20px;
+      }
+      #notifications {
+        border: 1px solid #ddd;
+        padding: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+      }
+      .task-item {
+        margin-bottom: 10px;
+      }
+      .task-item button {
+        margin-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Task Management</h1>
+
+    <!-- Task Input Form -->
+    <div>
+      <h2>Add New Task</h2>
+      <form id="taskForm">
+        <input
+          type="text"
+          id="taskTitle"
+          placeholder="Enter task title"
+          required
+        />
+        <button type="submit">Add Task</button>
+      </form>
+    </div>
+
+    <!-- Task List -->
+    <div>
+      <h2>Task List</h2>
+      <ul id="taskList"></ul>
+    </div>
+
+    <!-- Notifications -->
+    <div>
+      <h2>Notifications</h2>
+      <div id="notifications"></div>
+    </div>
+
+    <script>
+      // WebSocket connection
+      const ws = new WebSocket("ws://localhost:3000");
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        const notifications = document.getElementById("notifications");
+
+        if (message.type === "added") {
+          notifications.innerHTML += `<p>Task Added: ${message.task.title}</p>`;
+          addTaskToList(message.task);
+        } else if (message.type === "updated") {
+          notifications.innerHTML += `<p>Task Completed: ${message.task.title}</p>`;
+          updateTaskInList(message.task);
+        } else if (message.type === "deleted") {
+          notifications.innerHTML += `<p>Task Deleted: ${message.id}</p>`;
+          removeTaskFromList(message.id);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket Error:", error);
+      };
+
+      ws.onopen = () => {
+        console.log("WebSocket connection established");
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket connection closed");
+      };
+
+      // Handle task form submission
+      document
+        .getElementById("taskForm")
+        .addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const title = document.getElementById("taskTitle").value;
+          if (!title) return;
+
+          try {
+            const response = await fetch("http://localhost:3000/tasks", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ title }),
+            });
+
+            if (response.ok) {
+              document.getElementById("taskTitle").value = "";
+            } else {
+              console.error("Error adding task");
+            }
+          } catch (err) {
+            console.error("Fetch error:", err);
+          }
+        });
+
+      // Add task to the task list
+      function addTaskToList(task) {
+        const taskList = document.getElementById("taskList");
+        const taskItem = document.createElement("li");
+        taskItem.className = "task-item";
+        taskItem.id = `task-${task._id}`;
+        taskItem.innerHTML = `
+        ${task.title}
+        <button onclick="completeTask('${task._id}')">Complete</button>
+        <button onclick="deleteTask('${task._id}')">Delete</button>
+      `;
+        taskList.appendChild(taskItem);
+      }
+
+      // Update task in the task list
+      function updateTaskInList(task) {
+        const taskItem = document.getElementById(`task-${task._id}`);
+        if (taskItem) {
+          taskItem.innerHTML = `
+          ${task.title} - Completed
+          <button onclick="deleteTask('${task._id}')">Delete</button>
+        `;
+        }
+      }
+
+      // Remove task from the task list
+      function removeTaskFromList(taskId) {
+        const taskItem = document.getElementById(`task-${taskId}`);
+        if (taskItem) {
+          taskItem.remove();
+        }
+      }
+
+      // Complete a task
+      async function completeTask(taskId) {
+        try {
+          const response = await fetch(
+            `http://localhost:3000/tasks/${taskId}/complete`,
+            {
+              method: "PATCH",
+            }
+          );
+
+          if (response.ok) {
+            console.log("Task completed");
+          } else {
+            console.error("Error completing task");
+          }
+        } catch (err) {
+          console.error("Fetch error:", err);
+        }
+      }
+
+      // Delete a task
+      async function deleteTask(taskId) {
+        try {
+          const response = await fetch(
+            `http://localhost:3000/tasks/${taskId}`,
+            {
+              method: "DELETE",
+            }
+          );
+
+          if (response.ok) {
+            console.log("Task deleted");
+          } else {
+            console.error("Error deleting task");
+          }
+        } catch (err) {
+          console.error("Fetch error:", err);
+        }
+      }
+    </script>
+  </body>
+</html>
