@@ -55,4 +55,4 @@ Before running this project, ensure you have the following installed:
 9. **Contribution**
 
     ```bash
-    Feel free to fork the repository, make changes, and create a pull request. Contributions are welcome!
+    Feel free to fork the repository, make changes, and create a pull request. Contributions are welcome
